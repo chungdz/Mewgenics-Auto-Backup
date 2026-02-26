@@ -17,6 +17,11 @@ if ! command -v docker &>/dev/null; then
   exit 1
 fi
 
+if [[ ! -f "$PROJECT_ROOT/icons/app.ico" ]]; then
+  echo "Error: icons/app.ico not found. Add it to the repo and run build.sh again."
+  exit 1
+fi
+
 IMAGE="cdrx/pyinstaller-windows:python3"
 echo "==> Using image: $IMAGE"
 docker pull "$IMAGE" 2>/dev/null || true

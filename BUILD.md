@@ -76,7 +76,15 @@ If you have an `.ico` file:
 **Windows:**  
 `pyinstaller --onefile --windowed --name "MewgenicsBackup" --icon=app.ico src/mewgenics_backup_gui.py`
 
-**Linux (build.sh):** add `--icon=app.ico` to the `pyinstaller` command in `build.sh`.
+**Linux (build.sh):** add `--icon=icons/app.ico` to the `pyinstaller` command in `build.sh`.
+
+`build.bat` and `build.sh` require `icons/app.ico` (build fails with an error if it is missing).
+
+### Exe icon not updating?
+
+1. **Rebuild with a clean run** – `build.bat` now deletes `MewgenicsBackup.spec` and uses `--clean` so the icon is embedded again. Run `build.bat` again.
+2. **Icon file** – Ensure `icons/app.ico` exists before building (e.g. run `python icons/png_to_ico.py icons/appicon.png icons/app.ico`).
+3. **Windows icon cache** – Explorer caches exe icons. Try: rename the exe (e.g. to `MewgenicsBackup_new.exe`), or restart File Explorer (taskbar → right‑click → Exit Explorer, then run `explorer` from Task Manager or Start).
 
 ## Optional: hide console when testing
 
