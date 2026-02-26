@@ -1,7 +1,11 @@
 @echo off
 REM Run on Windows in the project root to build MewgenicsBackup.exe
 pip install pyinstaller
-pyinstaller --onefile --windowed --name "MewgenicsBackup" src/mewgenics_backup_gui.py
+python -m PyInstaller --onefile --windowed --name "MewgenicsBackup" src/mewgenics_backup_gui.py
 echo.
-echo Done. Executable: dist\MewgenicsBackup.exe
+if exist "dist\MewgenicsBackup.exe" (
+  echo Done. Executable: dist\MewgenicsBackup.exe
+) else (
+  echo Build may have failed. Check messages above.
+)
 pause
