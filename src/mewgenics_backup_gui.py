@@ -5,6 +5,7 @@ Mewgenics Backup - Windows GUI
 """
 import os
 import shutil
+import sys
 import threading
 import time
 import tkinter as tk
@@ -58,9 +59,13 @@ class BackupApp:
         self.root.minsize(480, 380)
         self.root.geometry("560x420")
 
-        # Window/taskbar icon (icons/app.ico relative to this script)
-        _script_dir = os.path.dirname(os.path.abspath(__file__))
-        _icon_path = os.path.normpath(os.path.join(_script_dir, "..", "icons", "app.ico"))
+        # Window/taskbar icon: use app.ico (from repo when running as script, from bundle when frozen)
+        if getattr(sys, "frozen", False):
+            _base = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+            _icon_path = os.path.join(_base, "icons", "app.ico")
+        else:
+            _script_dir = os.path.dirname(os.path.abspath(__file__))
+            _icon_path = os.path.abspath(os.path.join(_script_dir, "..", "icons", "app.ico"))
         if os.path.isfile(_icon_path):
             try:
                 self.root.iconbitmap(_icon_path)

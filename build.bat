@@ -27,7 +27,7 @@ if exist "dist\MewgenicsBackup.exe" (
 REM Remove old spec so PyInstaller regenerates it with the icon
 if exist "MewgenicsBackup.spec" del "MewgenicsBackup.spec"
 
-python -m PyInstaller --onefile --windowed --name "MewgenicsBackup" --icon="%ICON_PATH%" --clean src/mewgenics_backup_gui.py
+python -m PyInstaller --onefile --windowed --name "MewgenicsBackup" --icon="%ICON_PATH%" --add-data "%ICON_PATH%;icons" --clean src/mewgenics_backup_gui.py
 echo.
 if exist "dist\MewgenicsBackup.exe" (
   echo Done. Executable: dist\MewgenicsBackup.exe
