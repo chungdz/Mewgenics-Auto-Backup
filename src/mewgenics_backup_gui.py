@@ -58,6 +58,15 @@ class BackupApp:
         self.root.minsize(480, 380)
         self.root.geometry("560x420")
 
+        # Window/taskbar icon (icons/app.ico relative to this script)
+        _script_dir = os.path.dirname(os.path.abspath(__file__))
+        _icon_path = os.path.normpath(os.path.join(_script_dir, "..", "icons", "app.ico"))
+        if os.path.isfile(_icon_path):
+            try:
+                self.root.iconbitmap(_icon_path)
+            except Exception:
+                pass
+
         self.source_path = tk.StringVar()
         self.backup_dir = tk.StringVar()
         self.backup_file_path = tk.StringVar()

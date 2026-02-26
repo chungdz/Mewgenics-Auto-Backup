@@ -26,7 +26,7 @@ docker run --rm \
   -v "$PROJECT_ROOT:/src" \
   -w /src \
   "$IMAGE" \
-  pyinstaller --onefile --windowed --name MewgenicsBackup src/mewgenics_backup_gui.py
+  pyinstaller --onefile --windowed --name MewgenicsBackup --icon=icons/app.ico src/mewgenics_backup_gui.py
 
 EXE_WIN="dist/windows/MewgenicsBackup.exe"
 if [[ -f "$PROJECT_ROOT/$EXE_WIN" ]]; then

@@ -13,7 +13,7 @@ if exist "dist\MewgenicsBackup.exe" (
   )
 )
 
-python -m PyInstaller --onefile --windowed --name "MewgenicsBackup" src/mewgenics_backup_gui.py
+python -m PyInstaller --onefile --windowed --name "MewgenicsBackup" --icon=icons\app.ico src/mewgenics_backup_gui.py
 echo.
 if exist "dist\MewgenicsBackup.exe" (
   echo Done. Executable: dist\MewgenicsBackup.exe

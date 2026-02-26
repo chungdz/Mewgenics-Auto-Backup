@@ -3,3 +3,6 @@
 
 # For building Windows executable (install on Windows)
 pyinstaller>=6.0.0
+
+# For converting PNG to ICO (icons/png_to_ico.py)
+Pillow>=10.0.0
