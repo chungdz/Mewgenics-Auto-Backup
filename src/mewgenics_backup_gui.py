@@ -91,7 +91,8 @@ class BackupApp:
         self.btn_backup_now.pack(side=tk.LEFT, padx=(0, 8))
         self.watch_var = tk.BooleanVar(value=True)
         self.cb_watch = ttk.Checkbutton(row3, text="Watch for changes (backup automatically)", variable=self.watch_var, command=self._toggle_watch)
-        self.cb_watch.pack(side=tk.LEFT)
+        self.cb_watch.pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Button(row3, text="Clean up", command=self._cleanup_backup_folder).pack(side=tk.LEFT)
 
         # ---- Section: Restore from backup ----
         f_restore = ttk.LabelFrame(self.root, text="2. Restore: overwrite target with a backup", padding=8)
@@ -152,6 +153,31 @@ class BackupApp:
         path = filedialog.askdirectory(title="Select backup folder")
         if path:
             self.backup_dir.set(path)
+
+    def _cleanup_backup_folder(self):
+        """Delete all files in the current backup folder."""
+        bdir = self.backup_dir.get().strip()
+        if not bdir:
+            messagebox.showwarning("Clean up", "Please set the backup folder first.")
+            return
+        if not os.path.isdir(bdir):
+            messagebox.showerror("Clean up", f"Folder not found:\n{bdir}")
+            return
+        try:
+            names = os.listdir(bdir)
+            files = [os.path.join(bdir, n) for n in names if os.path.isfile(os.path.join(bdir, n))]
+            if not files:
+                self.status.set("Backup folder is already empty.")
+                self._log("Clean up: backup folder already empty.")
+                return
+            if not messagebox.askyesno("Clean up", f"Delete all {len(files)} file(s) in backup folder?\n\n{bdir}\n\nThis cannot be undone."):
+                return
+            for p in files:
+                os.remove(p)
+            self.status.set(f"Cleaned up {len(files)} file(s) in backup folder.")
+            self._log(f"Clean up: removed {len(files)} file(s) from {bdir}")
+        except OSError as e:
+            messagebox.showerror("Clean up", str(e))
 
     def _backup_now(self):
         src = self.source_path.get().strip()
