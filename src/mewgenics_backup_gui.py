@@ -16,6 +16,14 @@ from tkinter import filedialog, messagebox, ttk
 BACKUP_SUBDIR = "backup_history"
 
 
+def _default_backup_dir() -> str:
+    """Default backup history folder (Mewgenics-style path)."""
+    if os.name == "nt":
+        appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
+        return os.path.join(appdata, "Glaiel Games", "Mewgenics", BACKUP_SUBDIR)
+    return os.path.join(os.path.expanduser("~"), ".local", "share", "Glaiel Games", "Mewgenics", BACKUP_SUBDIR)
+
+
 def get_file_signature(path: str):
     """Return (mtime_ns, size) for change detection."""
     st = os.stat(path)
@@ -107,7 +115,7 @@ class BackupApp:
         self.status = tk.StringVar(value="Ready.")
         ttk.Label(self.root, textvariable=self.status, foreground="gray").pack(anchor=tk.W, **pad)
 
-        # When source changes, suggest backup dir
+        # When source changes, suggest backup dir and default restore target
         self.source_path.trace_add("write", self._on_source_changed)
 
     def _on_source_changed(self, *_):
@@ -119,6 +127,8 @@ class BackupApp:
             suggested = os.path.join(d, BACKUP_SUBDIR)
             if not self.backup_dir.get().strip():
                 self.backup_dir.set(suggested)
+        # Default restore target = same file we back up
+        self.restore_target_path.set(p)
 
     def _browse_source(self):
         path = filedialog.askopenfilename(
