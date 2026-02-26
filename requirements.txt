@@ -1,0 +1,5 @@
+# For running the GUI (stdlib only - tkinter is built-in)
+# No dependencies required to run mewgenics_backup_gui.py
+
+# For building Windows executable (install on Windows)
+pyinstaller>=6.0.0
