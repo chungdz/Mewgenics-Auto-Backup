@@ -89,7 +89,7 @@ class BackupApp:
         row3.pack(fill=tk.X)
         self.btn_backup_now = ttk.Button(row3, text="Backup now", command=self._backup_now)
         self.btn_backup_now.pack(side=tk.LEFT, padx=(0, 8))
-        self.watch_var = tk.BooleanVar(value=False)
+        self.watch_var = tk.BooleanVar(value=True)
         self.cb_watch = ttk.Checkbutton(row3, text="Watch for changes (backup automatically)", variable=self.watch_var, command=self._toggle_watch)
         self.cb_watch.pack(side=tk.LEFT)
 
@@ -111,6 +111,12 @@ class BackupApp:
 
         ttk.Button(f_restore, text="Restore (overwrite target with backup)", command=self._restore).pack(anchor=tk.W)
 
+        # ---- Log: each backup printed here ----
+        log_frame = ttk.LabelFrame(self.root, text="Log", padding=4)
+        log_frame.pack(fill=tk.BOTH, expand=True, **pad)
+        self.log_text = tk.Text(log_frame, height=5, wrap=tk.WORD, state=tk.DISABLED, font=("Consolas", 9))
+        self.log_text.pack(fill=tk.BOTH, expand=True)
+
         # ---- Status ----
         self.status = tk.StringVar(value="Ready.")
         ttk.Label(self.root, textvariable=self.status, foreground="gray").pack(anchor=tk.W, **pad)
@@ -129,6 +135,9 @@ class BackupApp:
                 self.backup_dir.set(suggested)
         # Default restore target = same file we back up
         self.restore_target_path.set(p)
+        # If watch is on by default, start watching once we have source and backup dir
+        if self.watch_var.get() and not self.watching:
+            self._toggle_watch()
 
     def _browse_source(self):
         path = filedialog.askopenfilename(
@@ -159,7 +168,7 @@ class BackupApp:
         out = backup_file(src, bdir)
         if out:
             self.status.set(f"Backup created: {os.path.basename(out)}")
-            messagebox.showinfo("Backup", f"Backup created:\n{out}")
+            self._log(f"Backup created: {out}")
         else:
             messagebox.showerror("Backup", "Failed to create backup.")
 
@@ -183,6 +192,7 @@ class BackupApp:
                     new_backup = backup_file(src, bdir)
                     if new_backup:
                         self.root.after(0, lambda n=new_backup: self.status.set(f"Auto-backup: {os.path.basename(n)}"))
+                        self.root.after(0, lambda n=new_backup: self._log(f"Auto-backup: {n}"))
             except Exception:
                 pass
         self.root.after(0, lambda: self._set_watch_ui(False))
@@ -254,13 +264,18 @@ class BackupApp:
         if not os.path.isfile(backup):
             messagebox.showerror("Restore", f"Backup file not found:\n{backup}")
             return
-        if not messagebox.askyesno("Restore", f"Overwrite\n  {target}\nwith backup?\n  {os.path.basename(backup)}"):
-            return
         if restore_file(backup, target):
             self.status.set(f"Restored: {target}")
-            messagebox.showinfo("Restore", f"Restored successfully:\n{target}")
+            self._log(f"Restored -> {target}")
         else:
             messagebox.showerror("Restore", "Restore failed.")
+
+    def _log(self, msg: str):
+        """Append a line to the log panel."""
+        self.log_text.config(state=tk.NORMAL)
+        self.log_text.insert(tk.END, f"[{datetime.now().strftime('%H:%M:%S')}] {msg}\n")
+        self.log_text.see(tk.END)
+        self.log_text.config(state=tk.DISABLED)
 
     def run(self):
         self.root.mainloop()
