@@ -36,7 +36,9 @@ def backup_file(source_path: str, backup_dir: str) -> str | None:
     if not os.path.isfile(source_path):
         return None
     os.makedirs(backup_dir, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H:%M:%S")
+    if os.name == "nt":
+        timestamp = timestamp.replace(":", "-")  # Windows disallows ':' in filenames
     ext = os.path.splitext(source_path)[1] or ".sav"
     dest_path = os.path.join(backup_dir, f"{timestamp}{ext}")
     shutil.copy(source_path, dest_path)
@@ -52,7 +54,7 @@ def restore_file(backup_path: str, target_path: str) -> bool:
 
 
 def _backup_display_name(path: str) -> str:
-    """Return display name for backup file (basename is YYYYMMDD_HHMMSS.sav)."""
+    """Return display name for backup file (basename is YYYYMMDD_HH:MM:SS.sav or YYYYMMDD_HH-MM-SS.sav on Windows)."""
     return os.path.basename(path)
 
 
@@ -60,8 +62,8 @@ class BackupApp:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Mewgenics Backup")
-        self.root.minsize(480, 380)
-        self.root.geometry("560x420")
+        self.root.minsize(560, 520)
+        self.root.geometry("680x620")
 
         # Window/taskbar icon: use app.ico (from repo when running as script, from bundle when frozen)
         if getattr(sys, "frozen", False):
