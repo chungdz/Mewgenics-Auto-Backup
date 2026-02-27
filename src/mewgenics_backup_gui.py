@@ -125,11 +125,16 @@ class BackupApp:
         ttk.Entry(row4, textvariable=self.backup_file_path, width=45).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 6))
         ttk.Button(row4, text="Browse...", command=self._browse_backup_file).pack(side=tk.RIGHT)
 
-        # Recent backups: show last 10, single-click sets backup file bar
-        f_recent = ttk.LabelFrame(f_restore, text="Recent backups (click to set backup file)", padding=4)
+        # All backups: list shows all, height 10 with scrollbar; single-click sets backup file bar
+        f_recent = ttk.LabelFrame(f_restore, text="Backups (click to set backup file)", padding=4)
         f_recent.pack(fill=tk.BOTH, expand=True, pady=(6, 0))
-        self.recent_listbox = tk.Listbox(f_recent, height=10, font=("Consolas", 9), selectmode=tk.SINGLE, activestyle=tk.DOTBOX)
-        self.recent_listbox.pack(fill=tk.BOTH, expand=True)
+        f_list = tk.Frame(f_recent)
+        f_list.pack(fill=tk.BOTH, expand=True)
+        scrollbar = ttk.Scrollbar(f_list)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.recent_listbox = tk.Listbox(f_list, height=10, font=("Consolas", 9), selectmode=tk.SINGLE, activestyle=tk.DOTBOX, yscrollcommand=scrollbar.set)
+        self.recent_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.recent_listbox.yview)
         self.recent_listbox.bind("<<ListboxSelect>>", self._on_recent_backup_select)
 
         row5 = tk.Frame(f_restore)
@@ -171,7 +176,7 @@ class BackupApp:
         self._refresh_recent_backups_list()
 
     def _get_recent_backups(self) -> list[tuple[str, str]]:
-        """Return up to 10 (display_name, full_path) from backup_dir, newest first."""
+        """Return all (display_name, full_path) from backup_dir, newest first."""
         bdir = self.backup_dir.get().strip()
         if not bdir or not os.path.isdir(bdir):
             return []
@@ -179,7 +184,7 @@ class BackupApp:
             entries = [(os.path.join(bdir, n), os.path.getmtime(os.path.join(bdir, n))) for n in os.listdir(bdir)]
             files = [(p, t) for p, t in entries if os.path.isfile(p)]
             files.sort(key=lambda x: x[1], reverse=True)
-            return [(_backup_display_name(p), p) for p, _ in files[:10]]
+            return [(_backup_display_name(p), p) for p, _ in files]
         except OSError:
             return []
 
@@ -252,7 +257,7 @@ class BackupApp:
         out = backup_file(src, bdir)
         if out:
             self.status.set(f"Backup created: {os.path.basename(out)}")
-            self._log(f"Backup created: {out}")
+            self._log(f"Backup created: {os.path.basename(out)}")
             self._refresh_recent_backups_list()
         else:
             messagebox.showerror("Backup", "Failed to create backup.")
@@ -277,7 +282,7 @@ class BackupApp:
                     new_backup = backup_file(src, bdir)
                     if new_backup:
                         self.root.after(0, lambda n=new_backup: self.status.set(f"Auto-backup: {os.path.basename(n)}"))
-                        self.root.after(0, lambda n=new_backup: self._log(f"Auto-backup: {n}"))
+                        self.root.after(0, lambda n=new_backup: self._log(f"Auto-backup: {os.path.basename(n)}"))
                         self.root.after(0, self._refresh_recent_backups_list)
             except Exception:
                 pass
@@ -350,8 +355,8 @@ class BackupApp:
             messagebox.showerror("Restore", f"Backup file not found:\n{backup}")
             return
         if restore_file(backup, target):
-            self.status.set(f"Restored: {target}")
-            self._log(f"Restored -> {target}")
+            self.status.set(f"Restored: {os.path.basename(target)}")
+            self._log(f"Restored: {os.path.basename(backup)} -> {os.path.basename(target)}")
         else:
             messagebox.showerror("Restore", "Restore failed.")
 
