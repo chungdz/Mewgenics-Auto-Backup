@@ -37,9 +37,8 @@ def backup_file(source_path: str, backup_dir: str) -> str | None:
         return None
     os.makedirs(backup_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    base = os.path.splitext(os.path.basename(source_path))[0]
     ext = os.path.splitext(source_path)[1] or ".sav"
-    dest_path = os.path.join(backup_dir, f"{base}_{timestamp}{ext}")
+    dest_path = os.path.join(backup_dir, f"{timestamp}{ext}")
     shutil.copy(source_path, dest_path)
     return dest_path
 
@@ -50,6 +49,11 @@ def restore_file(backup_path: str, target_path: str) -> bool:
         return False
     shutil.copy(backup_path, target_path)
     return True
+
+
+def _backup_display_name(path: str) -> str:
+    """Return display name for backup file (basename is YYYYMMDD_HHMMSS.sav)."""
+    return os.path.basename(path)
 
 
 class BackupApp:
@@ -79,6 +83,7 @@ class BackupApp:
         self.watching = False
         self.watch_thread: threading.Thread | None = None
         self.stop_watch = threading.Event()
+        self.recent_backup_paths: list[str] = []  # paths in listbox order
 
         self._build_ui()
 
@@ -118,6 +123,13 @@ class BackupApp:
         ttk.Entry(row4, textvariable=self.backup_file_path, width=45).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 6))
         ttk.Button(row4, text="Browse...", command=self._browse_backup_file).pack(side=tk.RIGHT)
 
+        # Recent backups: show last 10, single-click sets backup file bar
+        f_recent = ttk.LabelFrame(f_restore, text="Recent backups (click to set backup file)", padding=4)
+        f_recent.pack(fill=tk.BOTH, expand=True, pady=(6, 0))
+        self.recent_listbox = tk.Listbox(f_recent, height=10, font=("Consolas", 9), selectmode=tk.SINGLE, activestyle=tk.DOTBOX)
+        self.recent_listbox.pack(fill=tk.BOTH, expand=True)
+        self.recent_listbox.bind("<<ListboxSelect>>", self._on_recent_backup_select)
+
         row5 = tk.Frame(f_restore)
         row5.pack(fill=tk.X)
         ttk.Label(row5, text="Target file (to overwrite):").pack(side=tk.LEFT, padx=(0, 6))
@@ -138,6 +150,7 @@ class BackupApp:
 
         # When source changes, suggest backup dir and default restore target
         self.source_path.trace_add("write", self._on_source_changed)
+        self.backup_dir.trace_add("write", lambda *_: self._refresh_recent_backups_list())
 
     def _on_source_changed(self, *_):
         p = self.source_path.get().strip()
@@ -153,6 +166,34 @@ class BackupApp:
         # If watch is on by default, start watching once we have source and backup dir
         if self.watch_var.get() and not self.watching:
             self._toggle_watch()
+        self._refresh_recent_backups_list()
+
+    def _get_recent_backups(self) -> list[tuple[str, str]]:
+        """Return up to 10 (display_name, full_path) from backup_dir, newest first."""
+        bdir = self.backup_dir.get().strip()
+        if not bdir or not os.path.isdir(bdir):
+            return []
+        try:
+            entries = [(os.path.join(bdir, n), os.path.getmtime(os.path.join(bdir, n))) for n in os.listdir(bdir)]
+            files = [(p, t) for p, t in entries if os.path.isfile(p)]
+            files.sort(key=lambda x: x[1], reverse=True)
+            return [(_backup_display_name(p), p) for p, _ in files[:10]]
+        except OSError:
+            return []
+
+    def _refresh_recent_backups_list(self):
+        """Repopulate the recent backups listbox."""
+        self.recent_backup_paths.clear()
+        self.recent_listbox.delete(0, tk.END)
+        for display_name, full_path in self._get_recent_backups():
+            self.recent_listbox.insert(tk.END, display_name)
+            self.recent_backup_paths.append(full_path)
+
+    def _on_recent_backup_select(self, event):
+        """On single-click, set backup file bar to selected path."""
+        sel = self.recent_listbox.curselection()
+        if sel and 0 <= sel[0] < len(self.recent_backup_paths):
+            self.backup_file_path.set(self.recent_backup_paths[sel[0]])
 
     def _browse_source(self):
         path = filedialog.askopenfilename(
@@ -190,6 +231,7 @@ class BackupApp:
                 os.remove(p)
             self.status.set(f"Cleaned up {len(files)} file(s) in backup folder.")
             self._log(f"Clean up: removed {len(files)} file(s) from {bdir}")
+            self._refresh_recent_backups_list()
         except OSError as e:
             messagebox.showerror("Clean up", str(e))
 
@@ -209,6 +251,7 @@ class BackupApp:
         if out:
             self.status.set(f"Backup created: {os.path.basename(out)}")
             self._log(f"Backup created: {out}")
+            self._refresh_recent_backups_list()
         else:
             messagebox.showerror("Backup", "Failed to create backup.")
 
@@ -233,6 +276,7 @@ class BackupApp:
                     if new_backup:
                         self.root.after(0, lambda n=new_backup: self.status.set(f"Auto-backup: {os.path.basename(n)}"))
                         self.root.after(0, lambda n=new_backup: self._log(f"Auto-backup: {n}"))
+                        self.root.after(0, self._refresh_recent_backups_list)
             except Exception:
                 pass
         self.root.after(0, lambda: self._set_watch_ui(False))
@@ -271,15 +315,14 @@ class BackupApp:
         )
         if path:
             self.backup_file_path.set(path)
-            # Suggest restore target as same name in parent of backup dir
+            # Suggest restore target when backup has old format (base_YYYYMMDD_HHMMSS.sav); new format has no base so target stays as-is
             bdir = os.path.dirname(path)
             if not self.restore_target_path.get().strip():
-                # Default: overwrite a file with same base name in parent of backup dir
                 parent = os.path.dirname(bdir)
                 base = os.path.basename(path)
-                # If backup is like "steamcampaign01_20250101_120000.sav", target might be "steamcampaign01.sav"
-                if "_" in base and base.endswith(".sav"):
-                    possible = base.rsplit("_", 2)[0] + ".sav"
+                parts = base.rsplit("_", 2)
+                if len(parts) == 3 and parts[2].endswith(".sav"):
+                    possible = parts[0] + ".sav"
                     target = os.path.join(parent, possible)
                     if os.path.isfile(target):
                         self.restore_target_path.set(target)
