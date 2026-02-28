@@ -2,6 +2,7 @@
 Mewgenics Backup - Windows GUI
 - Select a file to backup (and create backups on demand or watch for changes)
 - Select a backup file to restore (overwrite a target file)
+- Close (X) minimizes to system tray; quit from tray menu.
 """
 import os
 import shutil
@@ -77,6 +78,7 @@ class BackupApp:
                 self.root.iconbitmap(_icon_path)
             except Exception:
                 pass
+        self._icon_path = _icon_path
 
         self.source_path = tk.StringVar()
         self.backup_dir = tk.StringVar()
@@ -88,6 +90,10 @@ class BackupApp:
         self.recent_backup_paths: list[str] = []  # paths in listbox order
 
         self._build_ui()
+        self._tray_available = False
+        self._setup_tray()
+        if self._tray_available:
+            self.root.protocol("WM_DELETE_WINDOW", self._minimize_to_tray)
 
     def _build_ui(self):
         pad = {"padx": 10, "pady": 6}
@@ -158,6 +164,51 @@ class BackupApp:
         # When source changes, suggest backup dir and default restore target
         self.source_path.trace_add("write", self._on_source_changed)
         self.backup_dir.trace_add("write", lambda *_: self._refresh_recent_backups_list())
+
+    def _minimize_to_tray(self):
+        """Hide window to system tray when user clicks X."""
+        self.root.withdraw()
+
+    def _tray_menu(self):
+        try:
+            import pystray
+            return pystray.Menu(
+                pystray.MenuItem("Show", self._tray_show, default=True),
+                pystray.MenuItem("Quit", self._tray_quit),
+            )
+        except ImportError:
+            return None
+
+    def _tray_show(self, icon, item):
+        self.root.after(0, lambda: (self.root.deiconify(), self.root.lift()))
+
+    def _tray_quit(self, icon, item):
+        icon.stop()
+        self.root.after(0, self._quit_from_tray)
+
+    def _quit_from_tray(self):
+        self.stop_watch.set()
+        self.root.destroy()
+
+    def _setup_tray(self):
+        """Create system tray icon (runs in background thread)."""
+        try:
+            import pystray
+            from PIL import Image
+        except ImportError:
+            return
+        try:
+            img = Image.open(self._icon_path).convert("RGBA")
+            if img.size != (32, 32):
+                img = img.resize((32, 32), Image.Resampling.LANCZOS)
+        except Exception:
+            img = Image.new("RGBA", (32, 32), (70, 130, 180, 255))
+        menu = self._tray_menu()
+        if menu is None:
+            return
+        self.tray_icon = pystray.Icon("Mewgenics Backup", img, "Mewgenics Backup", menu)
+        threading.Thread(target=self.tray_icon.run, daemon=True).start()
+        self._tray_available = True
 
     def _on_source_changed(self, *_):
         p = self.source_path.get().strip()
